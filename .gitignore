@@ -1,1 +1,11 @@
+# build output
 transformer
+*.o
+
+# IDEs
+.idea/
+.vscode/
+
+# training artifacts / checkpoints (uncomment when they exist)
+# *.bin
+# *.ckpt
