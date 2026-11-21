@@ -3,6 +3,8 @@
 
 #include "helpers.h"
 
+#include <stdlib.h>
+
 void matmul(float *a, float *b, float *c, uint64_t M, uint64_t K, uint64_t N) {
 /*
  * a -> M x K
@@ -60,4 +62,19 @@ float fast_gelu(float x) {
     float x_cubed = x * x * x;
     float inner = sqrt_2_over_pi * (x + coeff * x_cubed);
     return 0.5f * x * (1.0f + tanhf(inner));
+}
+
+/* Apparently rand() is weak and is typically replaced with more complex setups in projects like this
+   It will be left like this for the sake of reaching MVP
+ */
+
+float rand01(void) {
+    /* Uniform float in [0, 1) */
+    return rand() / (RAND_MAX + 1.0f);
+}
+
+
+float rand_uniform(float scale) {
+    /* Uniform float in [-scale, scale] */
+    return (rand01() * 2.0f - 1.0f) * scale;
 }

@@ -6,5 +6,8 @@
 void matmul(float *a, float *b, float *c, uint64_t M, uint64_t K, uint64_t N);
 void matprint(float *a, uint64_t M, uint64_t N);
 void softmax(float *z, float *p, uint64_t N);
+float fast_gelu(float x);
+float rand01(void);
+float rand_uniform(float scale);
 
 #endif

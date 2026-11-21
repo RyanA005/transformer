@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "helpers.h"
+#include "../include/model.h"
 
 int main(void) {
 
@@ -22,6 +24,12 @@ int main(void) {
     softmax(z, p, 8);
     matprint(z, 1, 8);
     matprint(p, 1, 8);
+
+    srand(42);
+    struct transformer t;
+    model_init(&t, 8, 4);
+    matprint(t.embedding_matrix, 8, 4);
+    model_free(&t);
 
 
     return 0;

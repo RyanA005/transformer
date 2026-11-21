@@ -1,6 +1,6 @@
 
-#ifndef TRANSFORMER_TOK_H
-#define TRANSFORMER_TOK_H
+#ifndef TOK_H
+#define TOK_H
 
 #include <stddef.h>
 #include "hashmap.h"
@@ -36,4 +36,4 @@ void train_test_split(char *path);
 
 
 
-#endif //TRANSFORMER_TOK_H
+#endif //TOK_H

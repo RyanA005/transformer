@@ -1,6 +1,6 @@
 
-#ifndef TRANSFORMER_MODEL_H
-#define TRANSFORMER_MODEL_H
+#ifndef MODEL_H
+#define MODEL_H
 #include <stddef.h>
 
 
@@ -19,6 +19,6 @@ float *model_forward(struct transformer *t, const float *input_embeds, size_t n)
 
 int model_save(const struct transformer *t, const char *path);
 
+void model_free(struct transformer *t);
 
-
-#endif //TRANSFORMER_MODEL_H
+#endif //MODEL_H
