@@ -27,10 +27,12 @@ int main(void) {
 
     srand(42);
     struct transformer t;
-    model_init(&t, 8, 4);
-    matprint(t.embedding_matrix, 8, 4);
+    model_init(&t, 8, 4, 16, 1);   // vocab 8, d 4, max_seq 16, 1 layer
+    int ids[] = {3, 1, 4};
+    float *x = get_input_embeddings(&t, ids, 3);
+    matprint(x, 3, 4);
+    free(x);
     model_free(&t);
-
 
     return 0;
 }

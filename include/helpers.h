@@ -9,5 +9,7 @@ void softmax(float *z, float *p, uint64_t N);
 float fast_gelu(float x);
 float rand01(void);
 float rand_uniform(float scale);
+float *alloc_random_matrix(size_t rows, size_t cols);
+
 
 #endif

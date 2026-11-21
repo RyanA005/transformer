@@ -78,3 +78,10 @@ float rand_uniform(float scale) {
     /* Uniform float in [-scale, scale] */
     return (rand01() * 2.0f - 1.0f) * scale;
 }
+float *alloc_random_matrix(size_t rows, size_t cols) {
+    float *m = malloc(rows * cols * sizeof(float));
+    if (m == NULL) return NULL;
+    for (size_t i = 0; i < rows * cols; i++)
+        m[i] = rand_uniform(0.02f);
+    return m;
+}
