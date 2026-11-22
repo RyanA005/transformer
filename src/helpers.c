@@ -29,7 +29,7 @@ void matprint(float *a, uint64_t M, uint64_t N) {
      */
     for (uint64_t i = 0; i < M; i++) {
         for (uint64_t j = 0; j < N; j++)
-            printf("%.3f ", a[i * N + j]);
+            printf("%.4f ", a[i * N + j]);
         printf("\n");
     }
 }

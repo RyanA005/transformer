@@ -115,7 +115,40 @@ static void attention_forward(const struct transformer_block *b, float *input_ma
     free(scores); free(weights);
 }
 
+static void mlp_forward(const struct transformer_block *b, float *input_mat,
+                        size_t seq_len, size_t dim) {
 
+    /*
+     Why the projections? The up projection widens each token to 4·dim hidden units so the GELU nonlinearity
+     has many neurons to work with, which is where the MLP gets its capacity.
+     The down projection combines those units back to dim, because the output has to match the
+     residual stream's (input_mat) width to be added back in.
+
+     This MLP, following the OG GPT-3, is two linear layers with a nonlinear function/layer sandwiched in between
+     */
+
+    size_t hidden_dim = 4 * dim; //MLP hidden layer width (4x model dim)
+
+    float *hidden_activations = malloc(seq_len * hidden_dim * sizeof(float)); // for each token, hidden layer output
+
+    float *mlp_update = malloc(seq_len * dim * sizeof(float)); // Projection back to dim.
+
+    // up projection
+    matmul(input_mat, b->mlp_up_weights, hidden_activations, seq_len, dim, hidden_dim);
+
+    for (size_t i = 0; i < seq_len * hidden_dim; i++) {
+        //applying nonlinear activation function (gelu (zeros negative numbers, almost))
+        hidden_activations[i] = fast_gelu(hidden_activations[i]);
+    }
+
+    matmul(hidden_activations, b->mlp_down_weights, mlp_update, seq_len, dim, dim);
+
+    for (size_t i = 0; i < seq_len * dim; i++) {
+        input_mat[i] += mlp_update[i];
+    }
+
+    free(hidden_activations); free(mlp_update);
+}
 
 float *model_forward(struct transformer *t, float *input_mat, size_t seq_len) {
 

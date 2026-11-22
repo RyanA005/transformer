@@ -26,12 +26,36 @@ int main(void) {
     matprint(p, 1, 8);
 
     srand(42);
+
+    size_t vocab_size = 8, dim = 8, max_context = 16, num_layers = 1, num_heads = 2;
     struct transformer t;
-    model_init(&t, 8, 4, 16, 1);   // vocab 8, d 4, max_seq 16, 1 layer
-    int ids[] = {3, 1, 4};
-    float *x = get_input_embeddings(&t, ids, 3);
-    matprint(x, 3, 4);
-    free(x);
+    if (model_init(&t, vocab_size, dim, max_context, num_layers, num_heads) != 0) {
+        printf("model_init failed\n");
+        return 1;
+    }
+
+    int token_ids[] = {3, 1, 4};
+    size_t seq_len = 3;
+
+    float *input_mat = get_input_embeddings(&t, token_ids, seq_len);
+    float *logits = model_forward(&t, input_mat, seq_len);
+
+    printf("\nlogits (seq_len x vocab_size):\n");
+    matprint(logits, seq_len, vocab_size);
+
+    // next-token prediction comes from the last row only
+    float probs[8];
+    softmax(logits + (seq_len - 1) * vocab_size, probs, vocab_size);
+    printf("\nnext-token probs:\n");
+    matprint(probs, 1, vocab_size);
+
+    size_t predicted = 0;
+    for (size_t i = 1; i < vocab_size; i++)
+        if (probs[i] > probs[predicted]) predicted = i;
+    printf("predicted next token id: %zu\n", predicted);
+
+    free(logits);
+    free(input_mat);
     model_free(&t);
 
     return 0;
