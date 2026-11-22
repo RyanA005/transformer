@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 struct transformer {
-    size_t vocab_size, model_dim, max_context, num_layers;
+    size_t vocab_size, dim, max_context, num_layers, num_heads;
     float *token_embeddings;       // vocab × model_dim
     float *position_embeddings;    // max_context × model_dim
     struct transformer_block *blocks; // num_layers of them
@@ -26,9 +26,10 @@ struct transformer_block {
 
 //randomly initialize the embeddings to floats within some small range centered around 0
 
-int model_init(struct transformer *t, size_t vocab_size, size_t dim, size_t max_context, size_t num_layers);
+int model_init(struct transformer *t, size_t vocab_size, size_t dim,
+    size_t max_context, size_t num_layers, size_t num_heads);
 
-float *model_forward(struct transformer *t, float *input_embeds, size_t seq_len);
+float *model_forward(struct transformer *t, float *input_mat, size_t seq_len);
 
 float *get_input_embeddings(const struct transformer *t, const int *token_ids, size_t seq_len);
 
