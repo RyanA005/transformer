@@ -85,3 +85,11 @@ float *alloc_random_matrix(size_t rows, size_t cols) {
         m[i] = rand_uniform(0.02f);
     return m;
 }
+
+float *alloc_filled_vector(size_t n, float value) {
+    /* alloc and fill every spot with one specified value */
+    float *v = malloc(n * sizeof(float));
+    for (size_t i = 0; i < n; i++) v[i] = value;
+    return v;
+}
+

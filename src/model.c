@@ -5,6 +5,7 @@
 #include "../include/model.h"
 #include <stdlib.h>
 #include "../include/helpers.h"
+#include "../include/normalization.h"
 #include <math.h>
 
 //randomly initialize the embeddings to floats within some small range centered around 0
@@ -34,7 +35,15 @@ int model_init(struct transformer *t, size_t vocab_size, size_t dim,
         b->attn_output_weights = alloc_random_matrix(dim, dim);
         b->mlp_up_weights      = alloc_random_matrix(dim, 4 * dim);
         b->mlp_down_weights    = alloc_random_matrix(4 * dim, dim);
+
+        b->attn_norm_gamma = alloc_filled_vector(dim, 1.0f);
+        b->attn_norm_beta  = alloc_filled_vector(dim, 0.0f);
+        b->mlp_norm_gamma  = alloc_filled_vector(dim, 1.0f);
+        b->mlp_norm_beta   = alloc_filled_vector(dim, 0.0f);
     }
+
+    t->final_norm_gamma = alloc_filled_vector(dim, 1.0f);
+    t->final_norm_beta  = alloc_filled_vector(dim, 0.0f);
 
     return 0;
 }
@@ -74,10 +83,15 @@ static void attention_forward(const struct transformer_block *b, float *input_ma
     float *scores = malloc(seq_len * sizeof(float)); // Ex: scores = [Q[2]*K[0], Q[2]*K[1], Q[2]*K[2]] = [2.0, ...]
     float *weights = malloc(seq_len * sizeof(float)); // Ex: weights = softmax(scores) = [0.11, ...]
 
-    // getting the learned weights into each matrix as starting values
-    matmul(input_mat, b->query_weights, Q, seq_len, dim, dim);
-    matmul(input_mat, b->key_weights, K, seq_len,dim, dim);
-    matmul(input_mat, b->value_weights, V, seq_len,dim, dim);
+
+    float *normalized_input = malloc(seq_len * dim * sizeof(float)); // LayerNorm'd copy of input_mat for attention
+    layer_norm(input_mat, normalized_input, b->attn_norm_gamma, b->attn_norm_beta, seq_len, dim);
+
+
+    // projecting input by the learned weights into each query, key, value matrix
+    matmul(normalized_input, b->query_weights, Q, seq_len, dim, dim);
+    matmul(normalized_input, b->key_weights, K, seq_len,dim, dim);
+    matmul(normalized_input, b->value_weights, V, seq_len,dim, dim);
 
     size_t head_dim = dim / num_heads;
     float scale = 1.0f / sqrtf((float)head_dim); // Apparently dividing by sqrt(query dimension space) helps the math
@@ -112,7 +126,7 @@ static void attention_forward(const struct transformer_block *b, float *input_ma
     }
 
     free(Q); free(K); free(V); free(head_outputs); free(attn_update);
-    free(scores); free(weights);
+    free(scores); free(weights); free(normalized_input);
 }
 
 static void mlp_forward(const struct transformer_block *b, float *input_mat,
@@ -133,21 +147,25 @@ static void mlp_forward(const struct transformer_block *b, float *input_mat,
 
     float *mlp_update = malloc(seq_len * dim * sizeof(float)); // Projection back to dim.
 
+
+    float *normalized_input = malloc(seq_len * dim * sizeof(float)); // LayerNorm'd copy of input_mat for MLP
+    layer_norm(input_mat, normalized_input, b->mlp_norm_gamma, b->mlp_norm_beta, seq_len, dim);
+
     // up projection
-    matmul(input_mat, b->mlp_up_weights, hidden_activations, seq_len, dim, hidden_dim);
+    matmul(normalized_input, b->mlp_up_weights, hidden_activations, seq_len, dim, hidden_dim);
 
     for (size_t i = 0; i < seq_len * hidden_dim; i++) {
         //applying nonlinear activation function (gelu (zeros negative numbers, almost))
         hidden_activations[i] = fast_gelu(hidden_activations[i]);
     }
 
-    matmul(hidden_activations, b->mlp_down_weights, mlp_update, seq_len, dim, dim);
+    matmul(hidden_activations, b->mlp_down_weights, mlp_update, seq_len, hidden_dim, dim);
 
     for (size_t i = 0; i < seq_len * dim; i++) {
         input_mat[i] += mlp_update[i];
     }
 
-    free(hidden_activations); free(mlp_update);
+    free(hidden_activations); free(mlp_update); free(normalized_input);
 }
 
 float *model_forward(struct transformer *t, float *input_mat, size_t seq_len) {
@@ -159,10 +177,15 @@ float *model_forward(struct transformer *t, float *input_mat, size_t seq_len) {
         mlp_forward(&t->blocks[layer], input_mat, seq_len, dim);
     }
 
+    // final LayerNorm, then unembedding reads the normalized copy
+    float *normalized_input = malloc(seq_len * dim * sizeof(float));
+    layer_norm(input_mat, normalized_input, t->final_norm_gamma, t->final_norm_beta, seq_len, dim);
+
     //unembedding: turning each vector back into one score per word
     float *logits = malloc(seq_len * t->vocab_size * sizeof(float));
-    matmul(input_mat, t->unembedding_weights, logits, seq_len, dim, t->vocab_size);
+    matmul(normalized_input, t->unembedding_weights, logits, seq_len, dim, t->vocab_size);
 
+    free(normalized_input);
     return logits;
 }
 
@@ -175,9 +198,12 @@ void model_free(struct transformer *t) {
         free(b->attn_output_weights);
         free(b->mlp_up_weights);
         free(b->mlp_down_weights);
+        free(b->attn_norm_gamma); free(b->attn_norm_beta);
+        free(b->mlp_norm_gamma);  free(b->mlp_norm_beta);
     }
     free(t->blocks);
     free(t->token_embeddings);
     free(t->position_embeddings);
     free(t->unembedding_weights);
+    free(t->final_norm_gamma); free(t->final_norm_beta);
 }
