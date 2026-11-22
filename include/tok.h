@@ -15,15 +15,12 @@ char **split_tokens(char *content);
 
 //key: token str, value: integer ID --> if not seen, assign id, counter++;
 //Why have an id? It will be the row index in the embedding matrix for the given token.
-void encode_tokens(char **split_tok_arr, struct hashmap_s *token_encode_map);
-// either that or do it this way: struct hashmap_s encode_tokens(char **split_tok_arr);
+void encode_tokens(char **toks, struct hashmap_s *token_encode_map);
+// either that or do it this way: struct hashmap_s encode_tokens(char **toks);
 
 
-//returns an arr of the ids in order
-int *get_token_ids(struct hashmap_s *token_encode_map, char **toks, size_t out_n);
-//Seems like repeated code going back through **toks? Thats because it is. If you want more efficient
-// code, then combine some of these methods. I am laying it out like this for the sake of understanding
-// and more atomic functions
+//returns an arr of the retrieved token ids in order given input **toks
+int *get_token_ids(struct hashmap_s *token_encode_map, char **toks, size_t num_tokens);
 
 
 //needed before we can do split_tokens on ex: train.txt
