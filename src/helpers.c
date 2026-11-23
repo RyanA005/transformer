@@ -3,6 +3,8 @@
 
 #include "helpers.h"
 
+#include <stdlib.h>
+
 void matmul(float *a, float *b, float *c, uint64_t M, uint64_t K, uint64_t N) {
 /*
  * a -> M x K
@@ -27,7 +29,7 @@ void matprint(float *a, uint64_t M, uint64_t N) {
      */
     for (uint64_t i = 0; i < M; i++) {
         for (uint64_t j = 0; j < N; j++)
-            printf("%.3f ", a[i * N + j]);
+            printf("%.4f ", a[i * N + j]);
         printf("\n");
     }
 }
@@ -61,3 +63,33 @@ float fast_gelu(float x) {
     float inner = sqrt_2_over_pi * (x + coeff * x_cubed);
     return 0.5f * x * (1.0f + tanhf(inner));
 }
+
+/* Apparently rand() is weak and is typically replaced with more complex setups in projects like this
+   It will be left like this for the sake of reaching MVP
+ */
+
+float rand01(void) {
+    /* Uniform float in [0, 1) */
+    return rand() / (RAND_MAX + 1.0f);
+}
+
+
+float rand_uniform(float scale) {
+    /* Uniform float in [-scale, scale] */
+    return (rand01() * 2.0f - 1.0f) * scale;
+}
+float *alloc_random_matrix(size_t rows, size_t cols) {
+    float *m = malloc(rows * cols * sizeof(float));
+    if (m == NULL) return NULL;
+    for (size_t i = 0; i < rows * cols; i++)
+        m[i] = rand_uniform(0.02f);
+    return m;
+}
+
+float *alloc_filled_vector(size_t n, float value) {
+    /* alloc and fill every spot with one specified value */
+    float *v = malloc(n * sizeof(float));
+    for (size_t i = 0; i < n; i++) v[i] = value;
+    return v;
+}
+
