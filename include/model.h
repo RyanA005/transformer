@@ -18,7 +18,7 @@ struct transformer_block {
     float *query_weights;      // dim × dim
     float *key_weights;        // dim × dim
     float *value_weights;      // dim × dim
-    float *attn_output_weights;// dim × dim   (projects attention result back into the residual stream (modified input mat)
+    float *attn_output_weights;// dim × dim   (projects attention result back into the residual stream)
     float *attn_norm_gamma;    // dim  (scale, init 1)
     float *attn_norm_beta;     // dim  (shift, init 0)
     // pre-MLP LayerNorm
@@ -32,29 +32,49 @@ struct transformer_block {
     // ts kinda confusing as is
 };
 
-// Preallocated forward-pass activations; sized for transformer.max_context.
+/*
+  Preallocated forward-pass activations + caches for backward.
+*/
 struct runtime {
     size_t max_seq_len;   // transformer.max_context
     size_t dim;
     size_t vocab_size;
     size_t num_layers;
+    size_t num_heads;
     size_t seq_len;       // length used by last forward
 
     float *residual;              // max_seq × dim  (live residual stream)
-    float **layer_residuals;      // [num_layers], each max_seq × dim
-    float *normalized;            // max_seq × dim  (LayerNorm scratch)
-    float *Q, *K, *V;             // max_seq × dim
-    float *head_outputs;          // max_seq × dim
-    float *attn_update;           // max_seq × dim
-    float *scores, *attn_weights; // max_seq
-    float *mlp_hidden;            // max_seq × (4·dim)
-    float *mlp_update;            // max_seq × dim
+    float **layer_residuals;      // [num_layers] post-block residual snapshot
+
+    // per-layer attention caches
+    float **attn_in;              // residual before attn LN
+    float **attn_normed;          // after attn LN
+    float **Q, **K, **V;
+    float **head_outputs;
+    float **attn_update;
+    float **attn_probs;
+
+    // per-layer MLP caches
+    float **mlp_in;               // residual before mlp LN
+    float **mlp_normed;
+    float **mlp_pre_gelu;         // after up-proj, before GELU
+    float **mlp_hidden;           // after GELU
+    float **mlp_post_update;      // down-proj output added to residual
+
+    float *final_normed;          // after final LN, before unembed
     float *logits;                // max_seq × vocab
-    float *probs;                 // vocab  (last token's next token probs)
+    float *probs;                 // vocab (last-token next-token probs, for inference print)
+    float *dlogits;               // max_seq × vocab (filled by loss)
+
+    // scratch reused during forward
+    float *scores;                // max_seq
+    float *attn_weights;          // max_seq (one query's softmax)
+    float *dresidual;             // max_seq × dim  (grad flowing through residual)
+    float *dscratch;              // max_seq × dim
+    float *dscratch2;             // max_seq × dim
+    float *dhidden;               // max_seq × (4·dim)
 };
 
-
-//randomly initialize the embeddings to floats within some small range centered around 0
 
 int model_init(struct transformer *t, size_t vocab_size, size_t dim,
     size_t max_context, size_t num_layers, size_t num_heads);
