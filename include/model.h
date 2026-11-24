@@ -1,4 +1,3 @@
-
 #ifndef MODEL_H
 #define MODEL_H
 
@@ -33,19 +32,42 @@ struct transformer_block {
     // ts kinda confusing as is
 };
 
+// Preallocated forward-pass activations; sized for transformer.max_context.
+struct runtime {
+    size_t max_seq_len;   // transformer.max_context
+    size_t dim;
+    size_t vocab_size;
+    size_t num_layers;
+    size_t seq_len;       // length used by last forward
+
+    float *residual;              // max_seq × dim  (live residual stream)
+    float **layer_residuals;      // [num_layers], each max_seq × dim
+    float *normalized;            // max_seq × dim  (LayerNorm scratch)
+    float *Q, *K, *V;             // max_seq × dim
+    float *head_outputs;          // max_seq × dim
+    float *attn_update;           // max_seq × dim
+    float *scores, *attn_weights; // max_seq
+    float *mlp_hidden;            // max_seq × (4·dim)
+    float *mlp_update;            // max_seq × dim
+    float *logits;                // max_seq × vocab
+    float *probs;                 // vocab  (last token's next token probs)
+};
+
 
 //randomly initialize the embeddings to floats within some small range centered around 0
 
 int model_init(struct transformer *t, size_t vocab_size, size_t dim,
     size_t max_context, size_t num_layers, size_t num_heads);
 
-float *model_forward(struct transformer *t, float *input_mat, size_t seq_len);
+int runtime_init(struct runtime *rt, const struct transformer *t);
 
-float *get_input_embeddings(const struct transformer *t, const int *token_ids, size_t seq_len);
+int model_forward(const struct transformer *t, struct runtime *rt,
+                  const int *token_ids, size_t seq_len);
 
 int model_save(const struct transformer *t, const char *path);
 
 void model_free(struct transformer *t);
 
+void runtime_free(struct runtime *rt);
 
 #endif //MODEL_H

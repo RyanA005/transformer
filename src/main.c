@@ -34,28 +34,35 @@ int main(void) {
         return 1;
     }
 
+    struct runtime rt;
+    if (runtime_init(&rt, &t) != 0) {
+        printf("runtime_init failed\n");
+        model_free(&t);
+        return 1;
+    }
+
     int token_ids[] = {3, 1, 4};
     size_t seq_len = 3;
 
-    float *input_mat = get_input_embeddings(&t, token_ids, seq_len);
-    float *logits = model_forward(&t, input_mat, seq_len);
+    if (model_forward(&t, &rt, token_ids, seq_len) != 0) {
+        printf("model_forward failed\n");
+        runtime_free(&rt);
+        model_free(&t);
+        return 1;
+    }
 
     printf("\nlogits (seq_len x vocab_size):\n");
-    matprint(logits, seq_len, vocab_size);
+    matprint(rt.logits, seq_len, vocab_size);
 
-    // next-token prediction comes from the last row only
-    float probs[8];
-    softmax(logits + (seq_len - 1) * vocab_size, probs, vocab_size);
     printf("\nnext-token probs:\n");
-    matprint(probs, 1, vocab_size);
+    matprint(rt.probs, 1, vocab_size);
 
     size_t predicted = 0;
     for (size_t i = 1; i < vocab_size; i++)
-        if (probs[i] > probs[predicted]) predicted = i;
+        if (rt.probs[i] > rt.probs[predicted]) predicted = i;
     printf("predicted next token id: %zu\n", predicted);
 
-    free(logits);
-    free(input_mat);
+    runtime_free(&rt);
     model_free(&t);
 
     return 0;
